@@ -263,14 +263,15 @@ configurar_cron_monitor() {
 }
 
 abrir_xray() {
-    if [ -x "/usr/local/bin/tunnelReverso" ]; then
-        /usr/local/bin/tunnelReverso
+    if [ -x "/usr/local/bin/xray-menu" ]; then
+        /usr/local/bin/xray-menu
     else
-        echo -e "\n${R}Erro: tunnelReverso.sh não encontrado ou sem permissão de execução.${NC}"
+        echo -e "\n${R}Erro: O script xray.sh não foi encontrado ou está sem permissão.${NC}"
         echo -e "${Y}Certifique-se de que a instalação (install.sh) ocorreu corretamente.${NC}"
         sleep 3
     fi
 }
+
 
 # --- MENU PRINCIPAL (LAYOUT REFEITO E LIMPO) ---
 
