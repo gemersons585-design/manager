@@ -9,15 +9,17 @@ apt-get install -y jq python3 python3-pip wget msmtp msmtp-mta ca-certificates b
 # Instala FastAPI para a API
 pip3 install fastapi uvicorn --break-system-packages 2>/dev/null || pip3 install fastapi uvicorn
 
-REPO="https://github.com/gemersons585-design/manager"
+# Baixa e configura o Manager Principal
+REPO="https://raw.githubusercontent.com/gemersons585-design/manager/main"
 
 # Baixa e configura o Manager Principal
 wget -qO /usr/local/bin/pmesp "$REPO/manager.sh"
 chmod +x /usr/local/bin/pmesp
 
 # Baixa e configura o Xray (Túnel Reverso)
-wget -qO /usr/local/bin/tunnelReverso "$REPO/tunnelReverso.sh"
-chmod +x /usr/local/bin/tunnelReverso
+wget -qO /usr/local/bin/xray-menu "$REPO/xray.sh"
+chmod +x /usr/local/bin/xray-menu
+
 
 # Baixa e configura a API
 mkdir -p /etc/pmesp
