@@ -9,7 +9,7 @@ apt-get install -y jq python3 python3-pip wget msmtp msmtp-mta ca-certificates b
 # Instala FastAPI para a API
 pip3 install fastapi uvicorn --break-system-packages 2>/dev/null || pip3 install fastapi uvicorn
 
-REPO="https://raw.githubusercontent.com/ColtSeals/antigo/main"
+REPO="https://github.com/gemersons585-design/manager"
 
 # Baixa e configura o Manager Principal
 wget -qO /usr/local/bin/pmesp "$REPO/manager.sh"
