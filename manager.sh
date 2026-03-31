@@ -235,24 +235,36 @@ EOF
     echo -e "${G}SMTP Configurado!${NC}"; sleep 2
 }
 
+# -------------------------------------------------------------
+# AS FUNÇÕES ABAIXO FORAM SILENCIADAS PARA NÃO QUEBRAR A TELA
+# -------------------------------------------------------------
+
 install_deps() {
     cabecalho
-    apt update && apt install jq msmtp net-tools squid sslh wget -y
-    echo -e "${G}Dependências Instaladas!${NC}"; sleep 2
+    echo -e "${Y}>>> Instalando Dependências (Aguarde alguns segundos)...${NC}"
+    apt-get update -y > /dev/null 2>&1
+    DEBIAN_FRONTEND=noninteractive apt-get install jq msmtp net-tools squid sslh wget -y > /dev/null 2>&1
+    echo -e "${G}Dependências Instaladas com Sucesso!${NC}"; sleep 2
 }
 
 install_squid() {
-    cabecalho; apt install squid -y >/dev/null
+    cabecalho
+    echo -e "${Y}>>> Instalando e Configurando Squid Proxy...${NC}"
+    DEBIAN_FRONTEND=noninteractive apt-get install squid -y > /dev/null 2>&1
     echo "http_port 3128" > /etc/squid/squid.conf
     echo "acl all src 0.0.0.0/0" >> /etc/squid/squid.conf
     echo "http_access allow all" >> /etc/squid/squid.conf
-    systemctl restart squid; echo -e "${G}Squid Ativo na porta 3128!${NC}"; sleep 2
+    systemctl restart squid > /dev/null 2>&1
+    echo -e "${G}Squid Ativo na porta 3128!${NC}"; sleep 2
 }
 
 install_sslh() {
-    cabecalho; apt install sslh -y >/dev/null
+    cabecalho
+    echo -e "${Y}>>> Instalando SSLH Multiplexer...${NC}"
+    DEBIAN_FRONTEND=noninteractive apt-get install sslh -y > /dev/null 2>&1
     echo 'DAEMON_OPTS="--user sslh --listen 0.0.0.0:443 --ssh 127.0.0.1:22"' > /etc/default/sslh
-    systemctl restart sslh; echo -e "${G}SSLH Ativo na porta 443!${NC}"; sleep 2
+    systemctl restart sslh > /dev/null 2>&1
+    echo -e "${G}SSLH Ativo na porta 443!${NC}"; sleep 2
 }
 
 configurar_cron_monitor() {
@@ -272,8 +284,7 @@ abrir_xray() {
     fi
 }
 
-
-# --- MENU PRINCIPAL (LAYOUT REFEITO E LIMPO) ---
+# --- MENU PRINCIPAL ---
 
 menu() {
     while true; do
