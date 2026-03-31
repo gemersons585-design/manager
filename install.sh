@@ -1,25 +1,27 @@
 #!/bin/bash
 # INSTALADOR PMESP ULTIMATE V8.0 + XRAY TUNNEL
-echo -e "\033[1;34m>>> PREPARANDO SISTEMA (SUDO/ROOT)...\033[0m"
+echo -e "\033[1;34m>>> PREPARANDO SISTEMA E ATUALIZANDO PACOTES (SUDO/ROOT)...\033[0m"
 
-# Garante o JQ e dependências antes de baixar o resto
-apt-get update -y
-apt-get install -y jq python3 python3-pip wget msmtp msmtp-mta ca-certificates bc screen nano net-tools lsof cron zip unzip
+# Atualiza as listas e faz o upgrade total (modo silencioso para não travar a tela)
+DEBIAN_FRONTEND=noninteractive apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+
+# Instala todas as dependências necessárias
+DEBIAN_FRONTEND=noninteractive apt-get install -y jq python3 python3-pip wget msmtp msmtp-mta ca-certificates bc screen nano net-tools lsof cron zip unzip
 
 # Instala FastAPI para a API
 pip3 install fastapi uvicorn --break-system-packages 2>/dev/null || pip3 install fastapi uvicorn
 
-# Baixa e configura o Manager Principal
+# Define o novo repositório correto
 REPO="https://raw.githubusercontent.com/gemersons585-design/manager/main"
 
 # Baixa e configura o Manager Principal
 wget -qO /usr/local/bin/pmesp "$REPO/manager.sh"
 chmod +x /usr/local/bin/pmesp
 
-# Baixa e configura o Xray (Túnel Reverso)
+# Baixa e configura o Xray (Túnel Reverso) com nome seguro (xray-menu)
 wget -qO /usr/local/bin/xray-menu "$REPO/xray.sh"
 chmod +x /usr/local/bin/xray-menu
-
 
 # Baixa e configura a API
 mkdir -p /etc/pmesp
