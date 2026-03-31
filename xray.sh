@@ -2,14 +2,6 @@
 # ==============================================================================
 #  XRAY TUNNEL MANAGER PRO v4 (VMess + WS + Reverse Portal/Bridge)
 # ==============================================================================
-#  - Rotacao segura de UUID
-#  - Backup automatico antes de alterar config
-#  - SOCKS do servidor preso em 127.0.0.1
-#  - Autenticacao opcional no SOCKS local
-#  - Exporta JSON do Windows para arquivo
-#  - Auditoria rapida de seguranca
-#  - Visualizacao de peers conectados / logs recentes
-# ==============================================================================
 
 set -Eeuo pipefail
 
@@ -19,11 +11,17 @@ set -Eeuo pipefail
 RED=$'\033[0;31m'
 GREEN=$'\033[0;32m'
 YELLOW=$'\033[1;33m'
-BLUE=$'\033[0;34m'
 CYAN=$'\033[0;36m'
 WHITE=$'\033[1;37m'
 DIM=$'\033[2m'
 NC=$'\033[0m'
+
+# Variaveis curtas para o menu
+C=$'\033[0;36m'
+W=$'\033[1;37m'
+R=$'\033[0;31m'
+G=$'\033[0;32m'
+Y=$'\033[1;33m'
 
 # =========================
 # PATHS / ARQUIVOS
@@ -43,7 +41,7 @@ XRAY_BIN="/usr/local/bin/xray"
 SERVICE="xray"
 
 # =========================
-# PADROES (alteraveis no menu)
+# PADROES
 # =========================
 PORT_TUNNEL_DEFAULT=443
 PORT_SOCKS_DEFAULT=1080
@@ -57,9 +55,6 @@ TZ_NAME_DEFAULT="America/Sao_Paulo"
 AUTO_CHECK_DEFAULT=1
 AUTO_CHECK_INTERVAL_DEFAULT=60
 
-# =========================
-# SITES DA VISTORIA (via SOCKS)
-# =========================
 SITES=(
   "INTRANET (HOME)|http://intranet.policiamilitar.sp.gov.br/"
   "COPOM ONLINE|https://copomonline.policiamilitar.sp.gov.br/Login/Login"
@@ -88,7 +83,7 @@ LAST_CHECK_EPOCH=""
 SITE_RESULTS=""
 
 # =========================
-# UI HELPERS (NOVO LAYOUT)
+# UI HELPERS (LAYOUT MOBILE)
 # =========================
 term_cols() { tput cols 2>/dev/null || echo "${COLUMNS:-100}"; }
 
@@ -334,9 +329,6 @@ EOF2
   fi
 }
 
-# ==============================================================
-# CONFIG DO SERVIDOR (COM CORRECAO DO ROTEAMENTO BUMERANGUE)
-# ==============================================================
 write_server_config() {
   ensure_dirs
   mkdir -p "$(dirname "$CONFIG_FILE")"
@@ -418,9 +410,6 @@ proxy_url() {
   fi
 }
 
-# ==============================================================
-# CONFIG DO CLIENTE (COM PROXY LOCAL 10808 MIXED)
-# ==============================================================
 export_client_json() {
   local vps_ip="$1"
   mkdir -p "$(dirname "$CLIENT_EXPORT_FILE")"
