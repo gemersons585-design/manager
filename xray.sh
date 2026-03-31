@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-# ┃ XRAY TUNNEL MANAGER PRO v4 (VMess + WS + Reverse Portal/Bridge)   ┃
-# ┃ - Rotação segura de UUID                                          ┃
-# ┃ - Backup automático antes de alterar config                       ┃
-# ┃ - SOCKS do servidor preso em 127.0.0.1                            ┃
-# ┃ - Autenticação opcional no SOCKS local                            ┃
-# ┃ - Exporta JSON do Windows para arquivo                            ┃
-# ┃ - Auditoria rápida de segurança                                   ┃
-# ┃ - Visualização de peers conectados / logs recentes                ┃
-# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+# ==============================================================================
+#  XRAY TUNNEL MANAGER PRO v4 (VMess + WS + Reverse Portal/Bridge)
+# ==============================================================================
+#  - Rotacao segura de UUID
+#  - Backup automatico antes de alterar config
+#  - SOCKS do servidor preso em 127.0.0.1
+#  - Autenticacao opcional no SOCKS local
+#  - Exporta JSON do Windows para arquivo
+#  - Auditoria rapida de seguranca
+#  - Visualizacao de peers conectados / logs recentes
+# ==============================================================================
 
 set -Eeuo pipefail
 
@@ -42,7 +43,7 @@ XRAY_BIN="/usr/local/bin/xray"
 SERVICE="xray"
 
 # =========================
-# PADRÕES (alteráveis no menu)
+# PADROES (alteraveis no menu)
 # =========================
 PORT_TUNNEL_DEFAULT=443
 PORT_SOCKS_DEFAULT=1080
@@ -68,7 +69,7 @@ SITES=(
 )
 
 # =========================
-# SETTINGS
+# SETTINGS & STATE
 # =========================
 PORT_TUNNEL="$PORT_TUNNEL_DEFAULT"
 PORT_SOCKS="$PORT_SOCKS_DEFAULT"
@@ -82,46 +83,42 @@ TZ_NAME="$TZ_NAME_DEFAULT"
 AUTO_CHECK="$AUTO_CHECK_DEFAULT"
 AUTO_CHECK_INTERVAL="$AUTO_CHECK_INTERVAL_DEFAULT"
 
-# =========================
-# STATE
-# =========================
 LAST_CHECK_AT=""
 LAST_CHECK_EPOCH=""
 SITE_RESULTS=""
 
 # =========================
-# UI helpers
+# UI HELPERS (NOVO LAYOUT)
 # =========================
 term_cols() { tput cols 2>/dev/null || echo "${COLUMNS:-100}"; }
 
-rule() {
-  local ch="${1:-─}"
-  local w; w="$(term_cols)"
-  printf "%b" "${DIM}"
-  printf "%*s" "$w" "" | tr ' ' "$ch"
-  printf "%b\n" "${NC}"
+barra_titulo() {
+  echo -e "${C}================================================================${NC}"
+}
+
+barra_fina() {
+  echo -e "${C}----------------------------------------------------------------${NC}"
 }
 
 title_bar() {
   local t="$1"
-  printf "%b\n" "${BLUE}${WHITE}${t}${NC}"
-  rule "━"
+  echo -e "${W}             $t              ${NC}"
+  barra_titulo
 }
 
 section() {
   local t="$1"
-  printf "%b\n" "${WHITE}${t}${NC}"
-  rule "─"
+  echo -e "${W} [ $t ]${NC}"
 }
 
-pause() { read -r -p "Enter para continuar..." _; }
+pause() { read -r -p "Pressione Enter para continuar..." _; }
 pad() { local w="$1"; shift; printf "%-*s" "$w" "$*"; }
 
 trunc() {
   local w="$1"; shift
   local s="$*"
   if (( ${#s} > w )); then
-    printf "%s" "${s:0:w-1}…"
+    printf "%s" "${s:0:w-1}..."
   else
     printf "%s" "$s"
   fi
@@ -130,20 +127,20 @@ trunc() {
 dot() {
   local ok="$1"
   if [[ "$ok" == "1" ]]; then
-    printf "%b" "${GREEN}●${NC}"
+    printf "%b" "${GREEN}[ON]${NC}"
   else
-    printf "%b" "${RED}●${NC}"
+    printf "%b" "${RED}[OFF]${NC}"
   fi
 }
 
 kv1() {
   local l="$1" v="$2"
-  printf "%b\n" "  ${DIM}•${NC} ${WHITE}$(pad 14 "${l}:")${NC} ${CYAN}${v}${NC}"
+  printf "%b\n" "  - ${WHITE}$(pad 14 "${l}:")${NC} ${CYAN}${v}${NC}"
 }
 
 kv2() {
   local l1="$1" v1="$2" l2="$3" v2="$4"
-  printf "%b\n" "  ${DIM}•${NC} ${WHITE}$(pad 12 "${l1}:")${NC} ${CYAN}${v1}${NC}    ${DIM}•${NC} ${WHITE}$(pad 12 "${l2}:")${NC} ${CYAN}${v2}${NC}"
+  printf "%b\n" "  - ${WHITE}$(pad 12 "${l1}:")${NC} ${CYAN}${v1}${NC}    - ${WHITE}$(pad 12 "${l2}:")${NC} ${CYAN}${v2}${NC}"
 }
 
 # =========================
@@ -151,20 +148,20 @@ kv2() {
 # =========================
 on_error() {
   local line="$1" cmd="$2"
-  printf "%b\n" "" >&2
-  printf "%b\n" "${RED}${WHITE}[ERRO]${NC} Linha ${WHITE}${line}${NC}: ${DIM}${cmd}${NC}" >&2
-  printf "%b\n" "${DIM}Dica:${NC} journalctl -u ${SERVICE} -n 120 --no-pager" >&2
+  echo "" >&2
+  echo -e "${RED}[ERRO]${NC} Linha ${WHITE}${line}${NC}: ${DIM}${cmd}${NC}" >&2
+  echo -e "${DIM}Dica: journalctl -u ${SERVICE} -n 120 --no-pager${NC}" >&2
 }
 trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
 # =========================
-# HELPERS
+# UTILS & HELPERS
 # =========================
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 require_root() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    printf "%b\n" "${RED}[ERRO] Rode como root.${NC} Ex: sudo bash $0"
+    echo -e "${RED}[ERRO] Rode como root.${NC} Ex: sudo bash $0"
     exit 1
   fi
 }
@@ -191,21 +188,12 @@ now_human() { TZ="$TZ_NAME" date '+%d/%m/%Y %H:%M:%S %Z'; }
 now_epoch() { TZ="$TZ_NAME" date '+%s'; }
 stamp() { date '+%F_%H%M%S'; }
 
-json_escape() {
-  jq -Rsa . <<<"$1"
-}
-
-random_token() {
-  tr -dc 'A-Za-z0-9@#%_=+.-' </dev/urandom | head -c "${1:-24}"
-}
+json_escape() { jq -Rsa . <<<"$1"; }
+random_token() { tr -dc 'A-Za-z0-9@#%_=+.-' </dev/urandom | head -c "${1:-24}"; }
 
 generate_uuid() {
-  if have_cmd xray; then
-    xray uuid 2>/dev/null && return 0
-  fi
-  if have_cmd uuidgen; then
-    uuidgen 2>/dev/null && return 0
-  fi
+  if have_cmd xray; then xray uuid 2>/dev/null && return 0; fi
+  if have_cmd uuidgen; then uuidgen 2>/dev/null && return 0; fi
   cat /proc/sys/kernel/random/uuid
 }
 
@@ -219,14 +207,8 @@ ensure_uuid() {
 }
 
 load_settings() {
-  if [[ -f "$SETTINGS_FILE" ]]; then
-    # shellcheck disable=SC1090
-    source "$SETTINGS_FILE"
-  fi
-  if [[ -f "$STATE_FILE" ]]; then
-    # shellcheck disable=SC1090
-    source "$STATE_FILE"
-  fi
+  if [[ -f "$SETTINGS_FILE" ]]; then source "$SETTINGS_FILE"; fi
+  if [[ -f "$STATE_FILE" ]]; then source "$STATE_FILE"; fi
 
   : "${PORT_TUNNEL:=$PORT_TUNNEL_DEFAULT}"
   : "${PORT_SOCKS:=$PORT_SOCKS_DEFAULT}"
@@ -239,14 +221,10 @@ load_settings() {
   : "${TZ_NAME:=$TZ_NAME_DEFAULT}"
   : "${AUTO_CHECK:=$AUTO_CHECK_DEFAULT}"
   : "${AUTO_CHECK_INTERVAL:=$AUTO_CHECK_INTERVAL_DEFAULT}"
-  : "${LAST_CHECK_AT:=}"
-  : "${LAST_CHECK_EPOCH:=}"
-  : "${SITE_RESULTS:=}"
 }
 
 save_settings() {
   cat > "$SETTINGS_FILE" <<EOF2
-# XRAY TUNNEL MANAGER - SETTINGS
 PORT_TUNNEL=${PORT_TUNNEL}
 PORT_SOCKS=${PORT_SOCKS}
 WS_PATH=$(printf "%q" "$WS_PATH")
@@ -263,7 +241,6 @@ EOF2
 
 save_state() {
   cat > "$STATE_FILE" <<EOF2
-# XRAY TUNNEL MANAGER - STATE
 LAST_CHECK_AT=$(printf "%q" "$LAST_CHECK_AT")
 LAST_CHECK_EPOCH=$(printf "%q" "$LAST_CHECK_EPOCH")
 SITE_RESULTS=$(printf "%q" "$SITE_RESULTS")
@@ -283,10 +260,7 @@ port_listen_info() {
   echo "$out"
 }
 
-port_is_listening() {
-  local port="$1"
-  [[ -n "$(port_listen_info "$port")" ]]
-}
+port_is_listening() { [[ -n "$(port_listen_info "$1")" ]]; }
 
 bridge_is_online() {
   local port="$1" n=0
@@ -300,51 +274,42 @@ bridge_is_online() {
 
 kill_port() {
   local port="$1"
-  if have_cmd fuser; then
-    fuser -k "${port}/tcp" >/dev/null 2>&1 || true
-  else
-    lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | xargs -r kill -9 >/dev/null 2>&1 || true
+  if have_cmd fuser; then fuser -k "${port}/tcp" >/dev/null 2>&1 || true
+  else lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | xargs -r kill -9 >/dev/null 2>&1 || true
   fi
 }
 
 force_cleanup_ports() {
-  printf "%b\n" "${YELLOW}[*] Parando serviço e limpando portas ${PORT_TUNNEL}/${PORT_SOCKS}...${NC}"
+  echo -e "${YELLOW}[*] Parando servico e limpando portas ${PORT_TUNNEL}/${PORT_SOCKS}...${NC}"
   systemctl stop "$SERVICE" >/dev/null 2>&1 || true
   kill_port "$PORT_TUNNEL"
   kill_port "$PORT_SOCKS"
-  printf "%b\n" "${GREEN}[OK] Limpeza concluída.${NC}"
+  echo -e "${GREEN}[OK] Limpeza concluida.${NC}"
 }
 
 apply_setcap_if_needed() {
-  if [[ -x "$XRAY_BIN" ]]; then
-    setcap CAP_NET_BIND_SERVICE=+eip "$XRAY_BIN" >/dev/null 2>&1 || true
-  fi
+  if [[ -x "$XRAY_BIN" ]]; then setcap CAP_NET_BIND_SERVICE=+eip "$XRAY_BIN" >/dev/null 2>&1 || true; fi
 }
 
 is_valid_port() { [[ "$1" =~ ^[0-9]+$ ]] && (( 1 <= 10#$1 && 10#$1 <= 65535 )); }
 
 backup_current_config() {
   ensure_dirs
-  if [[ -f "$CONFIG_FILE" ]]; then
-    cp "$CONFIG_FILE" "$BACKUP_DIR/config.$(stamp).json"
-  fi
-  if [[ -f "$UUID_FILE" ]]; then
-    cp "$UUID_FILE" "$UUID_HISTORY_DIR/uuid.$(stamp).txt"
-  fi
+  if [[ -f "$CONFIG_FILE" ]]; then cp "$CONFIG_FILE" "$BACKUP_DIR/config.$(stamp).json"; fi
+  if [[ -f "$UUID_FILE" ]]; then cp "$UUID_FILE" "$UUID_HISTORY_DIR/uuid.$(stamp).txt"; fi
 }
 
 restore_latest_backup() {
   local last
   last="$(ls -1t "$BACKUP_DIR"/config.*.json 2>/dev/null | head -n1 || true)"
   if [[ -z "$last" ]]; then
-    printf "%b\n" "${RED}[ERRO] Nenhum backup encontrado.${NC}"
+    echo -e "${RED}[ERRO] Nenhum backup encontrado.${NC}"
     pause
     return 0
   fi
-
   cp "$last" "$CONFIG_FILE"
   restart_xray
-  printf "%b\n" "${GREEN}[OK] Backup restaurado:${NC} ${CYAN}${last}${NC}"
+  echo -e "${GREEN}[OK] Backup restaurado: ${CYAN}${last}${NC}"
   pause
 }
 
@@ -369,6 +334,9 @@ EOF2
   fi
 }
 
+# ==============================================================
+# CONFIG DO SERVIDOR (COM CORRECAO DO ROTEAMENTO BUMERANGUE)
+# ==============================================================
 write_server_config() {
   ensure_dirs
   mkdir -p "$(dirname "$CONFIG_FILE")"
@@ -434,7 +402,7 @@ EOF2
 
   if ! jq empty "$tmp" >/dev/null 2>&1; then
     rm -f "$tmp" >/dev/null 2>&1 || true
-    printf "%b\n" "${RED}[ERRO] JSON gerado ficou inválido. Nada foi aplicado.${NC}"
+    echo -e "${RED}[ERRO] JSON gerado ficou invalido. Nada foi aplicado.${NC}"
     return 1
   fi
 
@@ -450,6 +418,9 @@ proxy_url() {
   fi
 }
 
+# ==============================================================
+# CONFIG DO CLIENTE (COM PROXY LOCAL 10808 MIXED)
+# ==============================================================
 export_client_json() {
   local vps_ip="$1"
   mkdir -p "$(dirname "$CLIENT_EXPORT_FILE")"
@@ -507,13 +478,14 @@ show_client_json() {
   export_client_json "$vps_ip"
 
   clear
+  barra_titulo
   title_bar "CONFIG DO PC INTRANET (WINDOWS - BRIDGE)"
-  printf "%b\n\n" "${DIM}Copie e salve como ${WHITE}config.json${NC}${DIM} no Windows:${NC}"
+  echo -e "${DIM}Copie e salve como config.json no Windows:${NC}\n"
   cat "$CLIENT_EXPORT_FILE"
-  echo
-  rule "─"
-  printf "%b\n" "${DIM}Arquivo exportado em:${NC} ${CYAN}${CLIENT_EXPORT_FILE}${NC}"
-  printf "%b\n" "${DIM}Obs:${NC} se mudar UUID, porta ou WS path, gere novamente este JSON."
+  echo ""
+  barra_fina
+  echo -e "${DIM}Arquivo salvo em:${NC} ${CYAN}${CLIENT_EXPORT_FILE}${NC}"
+  echo -e "${DIM}Dica: se mudar UUID ou portas, gere este JSON novamente.${NC}"
   pause
 }
 
@@ -524,41 +496,38 @@ restart_xray() {
 
 install_or_repair() {
   clear
+  barra_titulo
   title_bar "INSTALAR / REPARAR XRAY (PORTAL)"
 
   ensure_deps
   ensure_dirs
 
-  printf "%b\n" "${YELLOW}[*] Instalando/atualizando Xray oficial...${NC}"
+  echo -e "${YELLOW}[*] Instalando Xray oficial...${NC}"
   bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install >/dev/null 2>&1 || true
 
-  echo
+  echo ""
   force_cleanup_ports
 
-  printf "%b\n" "${YELLOW}[*] Gerando config do servidor...${NC}"
+  echo -e "${YELLOW}[*] Gerando config do servidor...${NC}"
   write_server_config
   apply_setcap_if_needed
 
   systemctl enable "$SERVICE" >/dev/null 2>&1 || true
   restart_xray
 
-  echo
-  if service_active; then
-    printf "%b\n" "${GREEN}${WHITE}[SUCESSO]${NC} Xray está ONLINE."
-  else
-    printf "%b\n" "${RED}${WHITE}[ERRO]${NC} Xray não subiu."
-    printf "%b\n" "${DIM}Veja logs:${NC} journalctl -u $SERVICE -n 140 --no-pager"
+  echo ""
+  if service_active; then echo -e "${GREEN}[SUCESSO] Xray esta ONLINE.${NC}"
+  else echo -e "${RED}[ERRO] Xray nao subiu. Veja logs: journalctl -u $SERVICE -n 140${NC}"
   fi
 
-  echo
-  rule "─"
-  printf "%b\n" "${WHITE}Resumo da Config:${NC}"
-  kv2 "TÚNEL" "$PORT_TUNNEL" "SOCKS" "$PORT_SOCKS"
+  echo ""
+  barra_fina
+  echo -e "${WHITE}Resumo da Config:${NC}"
+  kv2 "TUNEL" "$PORT_TUNNEL" "SOCKS" "$PORT_SOCKS"
   kv2 "WS PATH" "$WS_PATH" "DOMAIN" "$REVERSE_DOMAIN"
-  kv2 "SOCKS LISTEN" "$SOCKS_LISTEN" "SOCKS AUTH" "$SOCKS_AUTH"
+  kv2 "LISTEN" "$SOCKS_LISTEN" "AUTH" "$SOCKS_AUTH"
   kv1 "UUID" "$UUID"
-  rule "─"
-
+  barra_fina
   pause
 }
 
@@ -568,16 +537,13 @@ count_ok_sites() {
   local ok=0
   while IFS='|' read -r _name _code _ms status _msg; do
     [[ -z "${_name:-}" ]] && continue
-    if [[ "$status" == "OK" ]]; then
-      ok=$((ok+1))
-    fi
+    if [[ "$status" == "OK" ]]; then ok=$((ok+1)); fi
   done <<< "${SITE_RESULTS:-}"
   echo "$ok"
 }
 
 test_one_site() {
   local name="$1" url="$2"
-
   if ! port_is_listening "$PORT_SOCKS"; then
     echo "${name}|000|0|FAIL|SOCKS OFF"
     return 0
@@ -588,11 +554,7 @@ test_one_site() {
   proxy="$(proxy_url)"
 
   set +e
-  out="$(curl -k -sS -o /dev/null \
-    -w "%{http_code}|%{time_total}" \
-    --connect-timeout 5 --max-time 15 \
-    --proxy "$proxy" \
-    "$url" 2>"$tmp_err")"
+  out="$(curl -k -sS -o /dev/null -w "%{http_code}|%{time_total}" --connect-timeout 5 --max-time 15 --proxy "$proxy" "$url" 2>"$tmp_err")"
   rc=$?
   set -e
 
@@ -600,8 +562,7 @@ test_one_site() {
   total_time_ms="$(awk -v t="${out##*|}" 'BEGIN{ printf "%.0f", (t*1000) }' 2>/dev/null || echo 0)"
 
   if [[ $rc -ne 0 ]]; then
-    local msg
-    msg="$(tr '\n' ' ' <"$tmp_err" | sed 's/[[:space:]]\+/ /g' | cut -c1-90)"
+    local msg; msg="$(tr '\n' ' ' <"$tmp_err" | sed 's/[[:space:]]\+/ /g' | cut -c1-90)"
     rm -f "$tmp_err" >/dev/null 2>&1 || true
     echo "${name}|${code:-000}|${total_time_ms:-0}|FAIL|${msg:-curl error}"
     return 0
@@ -618,37 +579,26 @@ test_one_site() {
 }
 
 run_all_tests() {
-  local nowh nowe total
+  local nowh nowe total tmpdir idx=0
   nowh="$(now_human)"
   nowe="$(now_epoch)"
   total="$(site_count)"
+  tmpdir="/tmp/xray_tm_sites.$$"
 
-  local tmpdir="/tmp/xray_tm_sites.$$"
   rm -rf "$tmpdir" >/dev/null 2>&1 || true
   mkdir -p "$tmpdir"
 
-  local idx=0
   for item in "${SITES[@]}"; do
-    local name="${item%%|*}"
-    local url="${item#*|}"
-
-    (
-      test_one_site "$name" "$url" > "$tmpdir/$idx"
-    ) &
-
+    local name="${item%%|*}" url="${item#*|}"
+    ( test_one_site "$name" "$url" > "$tmpdir/$idx" ) &
     idx=$((idx+1))
   done
-
   wait || true
 
-  local results=""
-  local i
+  local results="" i
   for ((i=0; i<total; i++)); do
-    if [[ -f "$tmpdir/$i" ]]; then
-      results+="$(cat "$tmpdir/$i")"$'\n'
-    fi
+    if [[ -f "$tmpdir/$i" ]]; then results+="$(cat "$tmpdir/$i")"$'\n'; fi
   done
-
   rm -rf "$tmpdir" >/dev/null 2>&1 || true
 
   LAST_CHECK_AT="$nowh"
@@ -659,64 +609,50 @@ run_all_tests() {
 
 maybe_auto_check() {
   [[ "${AUTO_CHECK:-1}" -ne 1 ]] && return 0
-
-  if [[ -z "${LAST_CHECK_EPOCH:-}" ]]; then
-    run_all_tests
-    return 0
-  fi
+  if [[ -z "${LAST_CHECK_EPOCH:-}" ]]; then run_all_tests; return 0; fi
 
   local now diff
   now="$(now_epoch)"
   diff=$(( now - LAST_CHECK_EPOCH ))
-  if (( diff >= AUTO_CHECK_INTERVAL )); then
-    run_all_tests
-  fi
+  if (( diff >= AUTO_CHECK_INTERVAL )); then run_all_tests; fi
 }
 
 render_sites_block() {
-  printf "%b\n" "${WHITE}VISTORIA (via SOCKS 127.0.0.1:${PORT_SOCKS})${NC}"
+  section "VISTORIA (via SOCKS 127.0.0.1:${PORT_SOCKS})"
+  if [[ -z "${LAST_CHECK_AT:-}" ]]; then echo -e "  ${DIM}(ainda não executada)${NC}"; return 0; fi
 
-  if [[ -z "${LAST_CHECK_AT:-}" ]]; then
-    printf "%b\n" "  ${DIM}(ainda não executada)${NC}"
-    return 0
-  fi
-
-  local ok total
+  local ok total badge
   ok="$(count_ok_sites)"
   total="$(site_count)"
-
-  local badge="$YELLOW"
+  badge="$YELLOW"
   [[ "$ok" -eq "$total" ]] && badge="$GREEN"
   [[ "$ok" -eq 0 ]] && badge="$RED"
 
-  printf "%b\n" "  ${DIM}Última execução:${NC} ${CYAN}${LAST_CHECK_AT}${NC}"
-  printf "%b\n" "  ${DIM}Resultado:${NC} ${badge}${ok}/${total} OK${NC}"
-  echo
+  echo -e "  Ultima execucao: ${CYAN}${LAST_CHECK_AT}${NC}"
+  echo -e "  Resultado:       ${badge}${ok}/${total} OK${NC}\n"
 
   local W; W="$(term_cols)"
-  local name_w=22 code_w=5 ms_w=7
-  local msg_w=$(( W - (2 + 3 + name_w + 3 + code_w + 3 + ms_w + 3 + 2) ))
-  (( msg_w < 18 )) && msg_w=18
+  local name_w=20 code_w=5 ms_w=6
+  local msg_w=$(( W - (2 + name_w + code_w + ms_w + 10) ))
+  (( msg_w < 15 )) && msg_w=15
 
-  printf "%b\n" "  ${DIM}#  $(pad $name_w "SITE") | $(pad $code_w "HTTP") | $(pad $ms_w "LAT") | $(pad $msg_w "OBS")${NC}"
-  rule "·"
+  echo -e "  ${DIM}$(pad $name_w "SITE") | $(pad $code_w "HTTP") | $(pad $ms_w "LAT") | $(pad $msg_w "OBS")${NC}"
+  barra_fina
 
   local i=1
   while IFS='|' read -r name code ms status msg; do
     [[ -z "${name:-}" ]] && continue
-
     local c="$YELLOW"
     [[ "$status" == "OK" ]] && c="$GREEN"
     [[ "$status" == "FAIL" ]] && c="$RED"
 
-    printf "%b\n" "  ${DIM}$(pad 2 "$i")${NC} $(pad $name_w "$(trunc $name_w "$name")") ${DIM}|${NC} ${c}$(pad $code_w "${code:-000}")${NC} ${DIM}|${NC} ${DIM}$(pad $ms_w "${ms:-0}ms")${NC} ${DIM}|${NC} ${DIM}$(trunc $msg_w "${msg:-}")${NC}"
+    echo -e "  $(pad $name_w "$(trunc $name_w "$name")") ${DIM}|${NC} ${c}$(pad $code_w "${code:-000}")${NC} ${DIM}|${NC} ${DIM}$(pad $ms_w "${ms:-0}ms")${NC} ${DIM}|${NC} ${DIM}$(trunc $msg_w "${msg:-}")${NC}"
     i=$((i+1))
   done <<< "${SITE_RESULTS:-}"
 }
 
 render_header() {
   local vps_ip="$1"
-
   local srv=0 tnl=0 sks=0 br=0
   service_active && srv=1
   port_is_listening "$PORT_TUNNEL" && tnl=1
@@ -728,125 +664,110 @@ render_header() {
   li_socks="$(port_listen_info "$PORT_SOCKS")"
 
   clear
-  title_bar "XRAY TESTE PMESP (VMess+WS + Reverse Portal/Bridge)"
+  barra_titulo
+  title_bar "XRAY TUNNEL MANAGER"
 
   section "IDENTIDADE"
   kv2 "VPS IP" "${vps_ip:-N/A}" "TZ" "$TZ_NAME"
   kv1 "UUID" "$UUID"
+  echo ""
 
   section "CONFIG"
-  kv2 "TÚNEL" "$PORT_TUNNEL" "SOCKS" "$PORT_SOCKS"
+  kv2 "TUNEL" "$PORT_TUNNEL" "SOCKS" "$PORT_SOCKS"
   kv2 "WS PATH" "$WS_PATH" "DOMAIN" "$REVERSE_DOMAIN"
-  kv2 "SOCKS LISTEN" "$SOCKS_LISTEN" "SOCKS AUTH" "$SOCKS_AUTH"
-  printf "%b\n" "  ${DIM}•${NC} ${WHITE}Listen túnel:${NC} ${DIM}${li_tun:-N/A}${NC}"
-  printf "%b\n" "  ${DIM}•${NC} ${WHITE}Listen socks:${NC} ${DIM}${li_socks:-N/A}${NC}"
+  kv2 "LISTEN" "$SOCKS_LISTEN" "AUTH" "$SOCKS_AUTH"
+  echo -e "  - ${WHITE}Listen tunel:${NC} ${DIM}${li_tun:-N/A}${NC}"
+  echo -e "  - ${WHITE}Listen socks:${NC} ${DIM}${li_socks:-N/A}${NC}"
+  echo ""
 
-  section "SAÚDE"
-  printf "%b\n" "  $(dot "$srv") ${WHITE}Serviço Xray${NC}      $(dot "$tnl") ${WHITE}Porta Túnel${NC}      $(dot "$sks") ${WHITE}Porta SOCKS${NC}      $(dot "$br") ${WHITE}Bridge (Windows)${NC}"
+  section "SAUDE"
+  echo -e "  $(dot "$srv") Xray   $(dot "$tnl") Tunel   $(dot "$sks") SOCKS   $(dot "$br") Bridge Windows"
+  echo ""
 
-  rule "─"
   render_sites_block
-  rule "━"
+  echo ""
 }
 
 diagnostico() {
   local vps_ip="$1"
   clear
-  title_bar "DIAGNÓSTICO COMPLETO"
+  barra_titulo
+  title_bar "DIAGNOSTICO COMPLETO"
 
   kv2 "VPS IP" "${vps_ip:-N/A}" "AGORA" "$(now_human)"
   kv1 "UUID" "$UUID"
-  echo
+  echo ""
 
-  if service_active; then
-    printf "%b\n" "  $(dot 1) ${GREEN}Serviço Xray ONLINE${NC}"
-  else
-    printf "%b\n" "  $(dot 0) ${RED}Serviço Xray OFFLINE${NC}"
-  fi
+  if service_active; then echo -e "  $(dot 1) ${GREEN}Servico Xray ONLINE${NC}"
+  else echo -e "  $(dot 0) ${RED}Servico Xray OFFLINE${NC}"; fi
 
   local li_tun li_socks
   li_tun="$(port_listen_info "$PORT_TUNNEL")"
   li_socks="$(port_listen_info "$PORT_SOCKS")"
 
-  echo
+  echo ""
   section "PORTAS"
-  if [[ -n "$li_tun" ]]; then
-    printf "%b\n" "  ${GREEN}OK${NC}  Túnel ${CYAN}${PORT_TUNNEL}${NC}  ${DIM}${li_tun}${NC}"
-  else
-    printf "%b\n" "  ${RED}OFF${NC} Túnel ${CYAN}${PORT_TUNNEL}${NC}"
-  fi
-  if [[ -n "$li_socks" ]]; then
-    printf "%b\n" "  ${GREEN}OK${NC}  SOCKS ${CYAN}${PORT_SOCKS}${NC}  ${DIM}${li_socks}${NC}"
-  else
-    printf "%b\n" "  ${RED}OFF${NC} SOCKS ${CYAN}${PORT_SOCKS}${NC}"
-  fi
+  if [[ -n "$li_tun" ]]; then echo -e "  ${GREEN}OK${NC}  Tunel ${CYAN}${PORT_TUNNEL}${NC}  ${DIM}${li_tun}${NC}"
+  else echo -e "  ${RED}OFF${NC} Tunel ${CYAN}${PORT_TUNNEL}${NC}"; fi
+  if [[ -n "$li_socks" ]]; then echo -e "  ${GREEN}OK${NC}  SOCKS ${CYAN}${PORT_SOCKS}${NC}  ${DIM}${li_socks}${NC}"
+  else echo -e "  ${RED}OFF${NC} SOCKS ${CYAN}${PORT_SOCKS}${NC}"; fi
 
-  echo
-  section "POLÍTICA LOCAL DO SOCKS"
+  echo ""
+  section "POLITICA SOCKS LOCAL"
   kv2 "LISTEN" "$SOCKS_LISTEN" "AUTH" "$SOCKS_AUTH"
-  if [[ "$SOCKS_AUTH" == "password" ]]; then
-    kv1 "USUÁRIO SOCKS" "$SOCKS_USER"
-  fi
+  if [[ "$SOCKS_AUTH" == "password" ]]; then kv1 "USER" "$SOCKS_USER"; fi
 
-  echo
-  section "BRIDGE (WINDOWS)"
+  echo ""
+  section "BRIDGE WINDOWS"
   if bridge_is_online "$PORT_TUNNEL"; then
-    printf "%b\n" "  ${GREEN}CONECTADO${NC} (sessão ESTABLISHED no túnel)"
-    echo
-    if have_cmd ss; then
-      ss -Htn state established "( sport = :$PORT_TUNNEL )" 2>/dev/null | head -n 12 || true
-    else
-      netstat -tn 2>/dev/null | grep -E "ESTABLISHED.*:${PORT_TUNNEL}$" | head -n 12 || true
-    fi
-  else
-    printf "%b\n" "  ${RED}DESCONECTADO${NC}"
-  fi
+    echo -e "  ${GREEN}CONECTADO${NC} (sessao ESTABLISHED no tunel)\n"
+    if have_cmd ss; then ss -Htn state established "( sport = :$PORT_TUNNEL )" 2>/dev/null | head -n 12 || true
+    else netstat -tn 2>/dev/null | grep -E "ESTABLISHED.*:${PORT_TUNNEL}$" | head -n 12 || true; fi
+  else echo -e "  ${RED}DESCONECTADO${NC}"; fi
 
-  echo
-  rule "─"
-  printf "%b\n" "${DIM}Logs:${NC} journalctl -u $SERVICE -n 160 --no-pager"
+  echo ""
+  barra_fina
+  echo -e "${DIM}Logs: journalctl -u $SERVICE -n 160 --no-pager${NC}"
   pause
 }
 
 port_doctor() {
   clear
+  barra_titulo
   title_bar "PORT DOCTOR"
 
   local a b
   a="$(port_listen_info "$PORT_TUNNEL")"
   b="$(port_listen_info "$PORT_SOCKS")"
 
-  printf "%b\n" "  • Túnel ${CYAN}${PORT_TUNNEL}${NC}:  ${DIM}${a:-LIVRE / NÃO LISTEN}${NC}"
-  printf "%b\n" "  • SOCKS ${CYAN}${PORT_SOCKS}${NC}:  ${DIM}${b:-LIVRE / NÃO LISTEN}${NC}"
-  echo
+  echo -e "  - Tunel ${CYAN}${PORT_TUNNEL}${NC}:  ${DIM}${a:-LIVRE / NAO LISTEN}${NC}"
+  echo -e "  - SOCKS ${CYAN}${PORT_SOCKS}${NC}:  ${DIM}${b:-LIVRE / NAO LISTEN}${NC}\n"
 
-  printf "%b\n" "${WHITE}Ações:${NC}"
-  printf "%b\n" "  1) Matar processo na porta do Túnel (${PORT_TUNNEL})"
-  printf "%b\n" "  2) Matar processo na porta do SOCKS (${PORT_SOCKS})"
-  printf "%b\n" "  3) Limpeza completa (stop xray + kill nas duas portas)"
-  printf "%b\n" "  0) Voltar"
-  echo
+  echo -e "${WHITE}Acoes:${NC}"
+  echo -e "  1) Matar processo na porta do Tunel (${PORT_TUNNEL})"
+  echo -e "  2) Matar processo na porta do SOCKS (${PORT_SOCKS})"
+  echo -e "  3) Limpeza completa (stop xray + kill nas duas portas)"
+  echo -e "  0) Voltar\n"
   read -r -p "Escolha: " op
 
   case "$op" in
-    1) kill_port "$PORT_TUNNEL"; printf "%b\n" "${GREEN}[OK] Kill solicitado na porta ${PORT_TUNNEL}.${NC}"; pause ;;
-    2) kill_port "$PORT_SOCKS";  printf "%b\n" "${GREEN}[OK] Kill solicitado na porta ${PORT_SOCKS}.${NC}"; pause ;;
+    1) kill_port "$PORT_TUNNEL"; echo -e "${GREEN}[OK] Kill na porta ${PORT_TUNNEL}.${NC}"; pause ;;
+    2) kill_port "$PORT_SOCKS";  echo -e "${GREEN}[OK] Kill na porta ${PORT_SOCKS}.${NC}"; pause ;;
     3) force_cleanup_ports; pause ;;
     0) ;;
-    *) printf "%b\n" "${RED}Inválido${NC}"; pause ;;
+    *) echo -e "${RED}Invalido${NC}"; pause ;;
   esac
 }
 
 test_manual_one() {
   clear
-  title_bar "TESTE MANUAL (1 URL) via SOCKS"
-  printf "%b\n" "${DIM}Proxy:${NC} $(proxy_url)"
-  echo
+  barra_titulo
+  title_bar "TESTE MANUAL (1 URL)"
+  echo -e "${DIM}Proxy: $(proxy_url)${NC}\n"
   read -r -p "URL: " url
-  [[ -z "${url:-}" ]] && printf "%b\n" "${RED}[ERRO] URL vazia.${NC}" && pause && return 0
+  [[ -z "${url:-}" ]] && echo -e "${RED}[ERRO] URL vazia.${NC}" && pause && return 0
 
-  echo
-  printf "%b\n" "${YELLOW}[*] Testando...${NC}"
+  echo -e "\n${YELLOW}[*] Testando...${NC}"
   local line _name code ms status msg
   line="$(test_one_site "MANUAL" "$url")"
   IFS='|' read -r _name code ms status msg <<< "$line"
@@ -855,365 +776,228 @@ test_manual_one() {
   [[ "$status" == "OK" ]] && c="$GREEN"
   [[ "$status" == "FAIL" ]] && c="$RED"
 
-  echo
-  printf "%b\n" "  HTTP: ${c}${code}${NC}"
-  printf "%b\n" "  LAT:  ${DIM}${ms}ms${NC}"
-  printf "%b\n" "  OBS:  ${DIM}${msg}${NC}"
-  printf "%b\n" "  Hora: ${CYAN}$(now_human)${NC}"
+  echo -e "\n  HTTP: ${c}${code}${NC}"
+  echo -e "  LAT:  ${DIM}${ms}ms${NC}"
+  echo -e "  OBS:  ${DIM}${msg}${NC}"
+  echo -e "  Hora: ${CYAN}$(now_human)${NC}"
   pause
 }
 
 change_ports() {
   clear
+  barra_titulo
   title_bar "ALTERAR PORTAS"
-  printf "%b\n\n" "${DIM}Atual: túnel=${PORT_TUNNEL} | socks=${PORT_SOCKS}${NC}"
+  echo -e "${DIM}Atual: tunel=${PORT_TUNNEL} | socks=${PORT_SOCKS}${NC}\n"
 
   local new_t new_s
-  read -r -p "Nova porta do Túnel (VMess+WS) [${PORT_TUNNEL}]: " new_t
-  read -r -p "Nova porta do SOCKS interno [${PORT_SOCKS}]: " new_s
+  read -r -p "Nova porta do Tunel [${PORT_TUNNEL}]: " new_t
+  read -r -p "Nova porta do SOCKS [${PORT_SOCKS}]: " new_s
   new_t="${new_t:-$PORT_TUNNEL}"
   new_s="${new_s:-$PORT_SOCKS}"
 
   if ! is_valid_port "$new_t" || ! is_valid_port "$new_s"; then
-    printf "%b\n" "${RED}[ERRO] Portas inválidas. Use 1-65535.${NC}"
-    pause
-    return 0
+    echo -e "${RED}[ERRO] Portas invalidas. Use 1-65535.${NC}"; pause; return 0
   fi
 
-  PORT_TUNNEL="$new_t"
-  PORT_SOCKS="$new_s"
-  save_settings
+  PORT_TUNNEL="$new_t"; PORT_SOCKS="$new_s"; save_settings
+  echo -e "\n${YELLOW}[*] Aplicando nova config...${NC}"
+  force_cleanup_ports; write_server_config; apply_setcap_if_needed; restart_xray
 
-  echo
-  printf "%b\n" "${YELLOW}[*] Aplicando nova config e reiniciando Xray...${NC}"
-  force_cleanup_ports
-  write_server_config
-  apply_setcap_if_needed
-  restart_xray
-
-  echo
-  if service_active; then
-    printf "%b\n" "${GREEN}[OK] Alterações aplicadas.${NC}"
-  else
-    printf "%b\n" "${RED}[ERRO] Xray não subiu após a mudança.${NC}"
-  fi
-
-  run_all_tests
-  pause
+  if service_active; then echo -e "${GREEN}[OK] Alteracoes aplicadas.${NC}"; else echo -e "${RED}[ERRO] Xray nao subiu.${NC}"; fi
+  run_all_tests; pause
 }
 
 change_ws_path() {
   clear
+  barra_titulo
   title_bar "ALTERAR WS PATH"
-  printf "%b\n\n" "${DIM}Atual: ${WS_PATH}${NC}"
+  echo -e "${DIM}Atual: ${WS_PATH}${NC}\n"
 
   local p
-  read -r -p "Novo WS path (ex: /tunnel) [${WS_PATH}]: " p
+  read -r -p "Novo WS path [${WS_PATH}]: " p
   p="${p:-$WS_PATH}"
   [[ "$p" != /* ]] && p="/$p"
 
-  WS_PATH="$p"
-  save_settings
-
-  echo
-  printf "%b\n" "${YELLOW}[*] Aplicando nova config e reiniciando Xray...${NC}"
-  force_cleanup_ports
-  write_server_config
-  apply_setcap_if_needed
-  restart_xray
-
-  echo
-  if service_active; then
-    printf "%b\n" "${GREEN}[OK] WS path atualizado.${NC}"
-  else
-    printf "%b\n" "${RED}[ERRO] Xray não subiu após a mudança.${NC}"
-  fi
-
-  run_all_tests
-  pause
+  WS_PATH="$p"; save_settings
+  echo -e "\n${YELLOW}[*] Aplicando nova config...${NC}"
+  force_cleanup_ports; write_server_config; apply_setcap_if_needed; restart_xray
+  
+  if service_active; then echo -e "${GREEN}[OK] WS path atualizado.${NC}"; else echo -e "${RED}[ERRO] Xray nao subiu.${NC}"; fi
+  run_all_tests; pause
 }
 
 toggle_auto_check() {
   clear
-  title_bar "AUTO-VISTORIA NO MENU"
-
-  kv2 "AUTO" "${AUTO_CHECK} (1=ON 0=OFF)" "INTERVALO" "${AUTO_CHECK_INTERVAL}s"
+  barra_titulo
+  title_bar "AUTO-VISTORIA"
+  kv2 "AUTO" "${AUTO_CHECK} (1=ON 0=OFF)" "INT(s)" "${AUTO_CHECK_INTERVAL}"
   kv1 "TZ" "$TZ_NAME"
-  echo
+  echo ""
 
   local a i tz
   read -r -p "Auto-vistoria (1/0) [${AUTO_CHECK}]: " a
-  read -r -p "Intervalo em segundos [${AUTO_CHECK_INTERVAL}]: " i
-  read -r -p "Timezone (ex: America/Sao_Paulo) [${TZ_NAME}]: " tz
+  read -r -p "Intervalo (segundos) [${AUTO_CHECK_INTERVAL}]: " i
+  read -r -p "Timezone [${TZ_NAME}]: " tz
 
-  a="${a:-$AUTO_CHECK}"
-  i="${i:-$AUTO_CHECK_INTERVAL}"
-  tz="${tz:-$TZ_NAME}"
+  a="${a:-$AUTO_CHECK}"; i="${i:-$AUTO_CHECK_INTERVAL}"; tz="${tz:-$TZ_NAME}"
 
-  if [[ "$a" != "0" && "$a" != "1" ]]; then
-    printf "%b\n" "${RED}[ERRO] Auto-vistoria deve ser 0 ou 1.${NC}"; pause; return 0
-  fi
-  if ! [[ "$i" =~ ^[0-9]+$ ]] || (( i < 5 || i > 3600 )); then
-    printf "%b\n" "${RED}[ERRO] Intervalo inválido (5..3600).${NC}"; pause; return 0
-  fi
+  if [[ "$a" != "0" && "$a" != "1" ]]; then echo -e "${RED}[ERRO] Deve ser 0 ou 1.${NC}"; pause; return 0; fi
+  if ! [[ "$i" =~ ^[0-9]+$ ]] || (( i < 5 || i > 3600 )); then echo -e "${RED}[ERRO] Invalido (5..3600).${NC}"; pause; return 0; fi
 
-  AUTO_CHECK="$a"
-  AUTO_CHECK_INTERVAL="$i"
-  TZ_NAME="$tz"
-  save_settings
-
-  printf "%b\n" "\n${GREEN}[OK] Configurações salvas.${NC}"
-  pause
+  AUTO_CHECK="$a"; AUTO_CHECK_INTERVAL="$i"; TZ_NAME="$tz"; save_settings
+  echo -e "\n${GREEN}[OK] Salvo.${NC}"; pause
 }
 
 rotate_uuid() {
   clear
+  barra_titulo
   title_bar "ROTACIONAR UUID"
 
-  local old_uuid new_uuid
-  old_uuid="$UUID"
+  local old_uuid="$UUID" new_uuid
   new_uuid="$(generate_uuid)"
-
-  if [[ -z "$new_uuid" ]]; then
-    printf "%b\n" "${RED}[ERRO] Não foi possível gerar novo UUID.${NC}"
-    pause
-    return 0
-  fi
+  if [[ -z "$new_uuid" ]]; then echo -e "${RED}[ERRO] Falha ao gerar UUID.${NC}"; pause; return 0; fi
 
   backup_current_config
   echo "$new_uuid" > "$UUID_FILE"
   UUID="$new_uuid"
 
-  printf "%b\n" "${YELLOW}[*] Regravando config da VPS com o novo UUID...${NC}"
-  write_server_config
-  restart_xray
+  echo -e "${YELLOW}[*] Regravando config da VPS...${NC}"
+  write_server_config; restart_xray
 
-  echo
+  echo ""
   kv1 "UUID ANTIGO" "$old_uuid"
   kv1 "UUID NOVO" "$UUID"
-  printf "%b\n" "\n${GREEN}[OK] UUID rotacionado na VPS.${NC}"
-  printf "%b\n" "${YELLOW}[*] Gere novamente o JSON do Windows pela opção 'Mostrar JSON do Windows'.${NC}"
+  echo -e "\n${GREEN}[OK] UUID alterado.${NC} ${YELLOW}Gere o novo JSON para o Windows.${NC}"
   pause
 }
 
 change_socks_security() {
   clear
-  title_bar "SEGURANÇA DO SOCKS LOCAL"
-
+  barra_titulo
+  title_bar "SEGURANCA DO SOCKS LOCAL"
   kv2 "LISTEN" "$SOCKS_LISTEN" "AUTH" "$SOCKS_AUTH"
-  [[ "$SOCKS_AUTH" == "password" ]] && kv1 "USUÁRIO" "$SOCKS_USER"
-  echo
-  printf "%b\n" "${WHITE}Opções:${NC}"
-  printf "%b\n" "  1) Manter local seguro em 127.0.0.1"
-  printf "%b\n" "  2) Ativar senha no SOCKS local"
-  printf "%b\n" "  3) Remover senha do SOCKS local"
-  printf "%b\n" "  0) Voltar"
-  echo
+  [[ "$SOCKS_AUTH" == "password" ]] && kv1 "USER" "$SOCKS_USER"
+  echo -e "\n${WHITE}Opcoes:${NC}"
+  echo -e "  1) Manter seguro em 127.0.0.1"
+  echo -e "  2) Ativar senha"
+  echo -e "  3) Remover senha"
+  echo -e "  0) Voltar\n"
   read -r -p "Escolha: " op
 
   case "$op" in
-    1)
-      SOCKS_LISTEN="127.0.0.1"
-      save_settings
-      write_server_config
-      restart_xray
-      printf "%b\n" "${GREEN}[OK] SOCKS preso em 127.0.0.1.${NC}"
-      pause
-      ;;
+    1) SOCKS_LISTEN="127.0.0.1"; save_settings; write_server_config; restart_xray; echo -e "${GREEN}[OK] Salvo.${NC}"; pause ;;
     2)
       local u p
-      read -r -p "Usuário do SOCKS [monitor]: " u
-      read -r -p "Senha do SOCKS [gerar automática]: " p
-      u="${u:-monitor}"
-      p="${p:-$(random_token 24)}"
-      SOCKS_LISTEN="127.0.0.1"
-      SOCKS_AUTH="password"
-      SOCKS_USER="$u"
-      SOCKS_PASS="$p"
-      save_settings
-      write_server_config
-      restart_xray
-      printf "%b\n" "${GREEN}[OK] Autenticação ativada no SOCKS local.${NC}"
-      kv2 "USUÁRIO" "$SOCKS_USER" "SENHA" "$SOCKS_PASS"
-      pause
-      ;;
+      read -r -p "User [monitor]: " u; read -r -p "Pass [gerar]: " p
+      SOCKS_LISTEN="127.0.0.1"; SOCKS_AUTH="password"; SOCKS_USER="${u:-monitor}"; SOCKS_PASS="${p:-$(random_token 24)}"
+      save_settings; write_server_config; restart_xray
+      echo -e "${GREEN}[OK] Senha ativada.${NC}"; kv2 "USER" "$SOCKS_USER" "PASS" "$SOCKS_PASS"; pause ;;
     3)
-      SOCKS_LISTEN="127.0.0.1"
-      SOCKS_AUTH="noauth"
-      SOCKS_USER=""
-      SOCKS_PASS=""
-      save_settings
-      write_server_config
-      restart_xray
-      printf "%b\n" "${GREEN}[OK] SOCKS local voltou para noauth, mas segue preso em 127.0.0.1.${NC}"
-      pause
-      ;;
+      SOCKS_LISTEN="127.0.0.1"; SOCKS_AUTH="noauth"; SOCKS_USER=""; SOCKS_PASS=""
+      save_settings; write_server_config; restart_xray
+      echo -e "${GREEN}[OK] Senha removida.${NC}"; pause ;;
     0) ;;
-    *) printf "%b\n" "${RED}Inválido${NC}"; pause ;;
+    *) echo -e "${RED}Invalido${NC}"; pause ;;
   esac
 }
 
 security_audit() {
   clear
-  title_bar "AUDITORIA RÁPIDA DE SEGURANÇA"
-
+  barra_titulo
+  title_bar "AUDITORIA RAPIDA"
   local score=0
 
-  if [[ "$SOCKS_LISTEN" == "127.0.0.1" ]]; then
-    printf "%b\n" "  ${GREEN}OK${NC}  SOCKS do servidor restrito a 127.0.0.1"
-    score=$((score+1))
-  else
-    printf "%b\n" "  ${RED}RISCO${NC} SOCKS escutando fora de 127.0.0.1"
-  fi
+  if [[ "$SOCKS_LISTEN" == "127.0.0.1" ]]; then echo -e "  ${GREEN}[OK]${NC} SOCKS restrito a 127.0.0.1"; score=$((score+1))
+  else echo -e "  ${RED}[!!]${NC} SOCKS aberto fora do localhost"; fi
 
-  if [[ "$SOCKS_AUTH" == "password" ]]; then
-    printf "%b\n" "  ${GREEN}OK${NC}  SOCKS local com autenticação"
-    score=$((score+1))
-  else
-    printf "%b\n" "  ${YELLOW}AVISO${NC} SOCKS local sem senha (aceitável só por estar em 127.0.0.1)"
-  fi
+  if [[ "$SOCKS_AUTH" == "password" ]]; then echo -e "  ${GREEN}[OK]${NC} SOCKS com senha"; score=$((score+1))
+  else echo -e "  ${YELLOW}[--]${NC} SOCKS sem senha"; fi
 
-  if [[ -f "$UUID_FILE" ]]; then
-    printf "%b\n" "  ${GREEN}OK${NC}  UUID persistido e rotacionável"
-    score=$((score+1))
-  else
-    printf "%b\n" "  ${RED}RISCO${NC} UUID persistente não encontrado"
-  fi
+  if [[ -f "$UUID_FILE" ]]; then echo -e "  ${GREEN}[OK]${NC} UUID persistido"; score=$((score+1))
+  else echo -e "  ${RED}[!!]${NC} UUID solto"; fi
 
-  if [[ -f "$ACCESS_LOG_FILE" ]]; then
-    printf "%b\n" "  ${GREEN}OK${NC}  Access log habilitado em $ACCESS_LOG_FILE"
-    score=$((score+1))
-  else
-    printf "%b\n" "  ${YELLOW}AVISO${NC} Access log ainda não foi criado"
-  fi
+  if [[ -f "$ACCESS_LOG_FILE" ]]; then echo -e "  ${GREEN}[OK]${NC} Access log ativo"; score=$((score+1))
+  else echo -e "  ${YELLOW}[--]${NC} Access log vazio"; fi
 
-  if service_active; then
-    printf "%b\n" "  ${GREEN}OK${NC}  Serviço Xray ativo"
-    score=$((score+1))
-  else
-    printf "%b\n" "  ${RED}RISCO${NC} Serviço Xray inativo"
-  fi
+  if service_active; then echo -e "  ${GREEN}[OK]${NC} Xray ativo"; score=$((score+1))
+  else echo -e "  ${RED}[!!]${NC} Xray inativo"; fi
 
-  echo
-  printf "%b\n" "${WHITE}Placar:${NC} ${CYAN}${score}/5${NC}"
-  echo
-  printf "%b\n" "${DIM}Sugestão:${NC} após rotacionar UUID, gere novo JSON do Windows e descarte o antigo."
+  echo -e "\n${WHITE}Placar:${NC} ${CYAN}${score}/5${NC}"
   pause
 }
 
 show_connected_peers() {
   clear
-  title_bar "PEERS CONECTADOS NO TÚNEL"
+  barra_titulo
+  title_bar "PEERS CONECTADOS"
+  echo -e "${DIM}Porta: ${CYAN}${PORT_TUNNEL}${NC}\n"
 
-  printf "%b\n" "${DIM}Porta observada:${NC} ${CYAN}${PORT_TUNNEL}${NC}"
-  echo
-
-  if have_cmd ss; then
-    ss -Htn state established "( sport = :$PORT_TUNNEL )" 2>/dev/null | awk '{print $4" <- " $5}' | sort -u || true
-  else
-    netstat -tn 2>/dev/null | awk '/ESTABLISHED/ && $4 ~ /:'"$PORT_TUNNEL"'$/ {print $4" <- "$5}' | sort -u || true
-  fi
-
-  echo
-  printf "%b\n" "${DIM}Se aparecer IP/desconhecido em horários estranhos, rotacione UUID imediatamente.${NC}"
+  if have_cmd ss; then ss -Htn state established "( sport = :$PORT_TUNNEL )" 2>/dev/null | awk '{print $4" <- " $5}' | sort -u || true
+  else netstat -tn 2>/dev/null | awk '/ESTABLISHED/ && $4 ~ /:'"$PORT_TUNNEL"'$/ {print $4" <- "$5}' | sort -u || true; fi
+  echo ""
   pause
 }
 
 show_recent_logs() {
   clear
-  title_bar "LOGS RECENTES DO XRAY"
-
-  printf "%b\n" "${WHITE}Últimas linhas do access.log:${NC}"
-  rule "─"
-  tail -n 40 "$ACCESS_LOG_FILE" 2>/dev/null || printf "%b\n" "${DIM}(sem access.log ainda)${NC}"
-  echo
-  rule "─"
-  printf "%b\n" "${WHITE}Últimas linhas do error.log:${NC}"
-  rule "─"
-  tail -n 25 "$ERROR_LOG_FILE" 2>/dev/null || printf "%b\n" "${DIM}(sem error.log ainda)${NC}"
+  barra_titulo
+  title_bar "LOGS XRAY"
+  echo -e "${WHITE}ACCESS.LOG (ultimas linhas):${NC}"
+  barra_fina
+  tail -n 20 "$ACCESS_LOG_FILE" 2>/dev/null || echo -e "${DIM}(vazio)${NC}"
+  echo ""
+  echo -e "${WHITE}ERROR.LOG (ultimas linhas):${NC}"
+  barra_fina
+  tail -n 15 "$ERROR_LOG_FILE" 2>/dev/null || echo -e "${DIM}(vazio)${NC}"
   pause
 }
 
 render_menu() {
-  section "MENU"
-  local W; W="$(term_cols)"
-
-  local left=(
-    "1|Instalar / Reparar"
-    "2|Alterar portas (túnel/socks)"
-    "3|Alterar WS path"
-    "4|Mostrar JSON do Windows (Bridge)"
-    "5|Diagnóstico completo"
-    "6|Rodar vistoria agora"
-    "7|Teste manual (1 URL)"
-    "8|Port Doctor"
-  )
-  local right=(
-    "9|Reiniciar Xray"
-    "10|Auto-vistoria"
-    "11|Rotacionar UUID"
-    "12|Segurança do SOCKS local"
-    "13|Auditoria rápida de segurança"
-    "14|Ver peers conectados"
-    "15|Ver logs recentes"
-    "16|Restaurar último backup"
-  )
-
-  if (( W < 92 )); then
-    local item
-    for item in "${left[@]}" "${right[@]}"; do
-      local k="${item%%|*}" t="${item#*|}"
-      printf "%b\n" "  ${CYAN}$(pad 2 "$k")${NC}  ${WHITE}${t}${NC}"
-    done
-    printf "%b\n\n" "  ${DIM}0   Sair${NC}"
-    return 0
-  fi
-
-  local i
-  for i in 0 1 2 3 4 5 6 7; do
-    local l="${left[$i]}" r="${right[$i]}"
-    local lk="${l%%|*}" lt="${l#*|}"
-    local rk="${r%%|*}" rt="${r#*|}"
-    printf "%b\n" "  ${CYAN}$(pad 2 "$lk")${NC}  ${WHITE}$(pad 34 "$lt")${NC}   ${CYAN}$(pad 2 "$rk")${NC}  ${WHITE}${rt}${NC}"
-  done
-  printf "%b\n\n" "  ${DIM}0   Sair${NC}"
+  barra_titulo
+  echo -e "${W} [ CONTROLE DO TUNEL ]${NC}"
+  echo -e "${C}  01.${NC} Instalar / Reparar    ${C}05.${NC} Ver JSON Windows"
+  echo -e "${C}  02.${NC} Alterar Portas        ${C}06.${NC} Rotacionar UUID"
+  echo -e "${C}  03.${NC} Alterar WS Path       ${C}07.${NC} Configurar Seguranca"
+  echo -e "${C}  04.${NC} Reiniciar Xray        ${C}08.${NC} Restaurar Backup"
+  echo ""
+  echo -e "${W} [ MONITORAMENTO ]${NC}"
+  echo -e "${C}  09.${NC} Diagnostico Geral     ${C}13.${NC} Port Doctor"
+  echo -e "${C}  10.${NC} Rodar Vistoria        ${C}14.${NC} Ver Peers Online"
+  echo -e "${C}  11.${NC} Teste de URL Unico    ${C}15.${NC} Ver Logs Recentes"
+  echo -e "${C}  12.${NC} Ajustar Auto-Check    ${C}16.${NC} Auditoria Express"
+  echo ""
+  echo -e "${R}  00.${NC} Voltar ao Painel PMESP"
+  barra_titulo
 }
 
 main() {
-  require_root
-  ensure_deps
-  ensure_dirs
-  load_settings
-  ensure_uuid
-
-  local VPS_IP
-  VPS_IP="$(get_ip)"
+  require_root; ensure_deps; ensure_dirs; load_settings; ensure_uuid
+  local VPS_IP="$(get_ip)"
 
   while true; do
     maybe_auto_check
     render_header "$VPS_IP"
     render_menu
-
-    read -r -p "Escolha: " op
+    read -r -p "➤ Opcao: " op
     case "$op" in
-      1) install_or_repair ;;
-      2) change_ports ;;
-      3) change_ws_path ;;
-      4) show_client_json "$VPS_IP" ;;
-      5) diagnostico "$VPS_IP" ;;
-      6) run_all_tests; printf "%b\n" "${GREEN}[OK] Vistoria executada.${NC}"; pause ;;
-      7) test_manual_one ;;
-      8) port_doctor ;;
-      9) restart_xray; run_all_tests; printf "%b\n" "${GREEN}[OK] Reiniciado + vistoria atualizada.${NC}"; pause ;;
-      10) toggle_auto_check ;;
-      11) rotate_uuid ;;
-      12) change_socks_security ;;
-      13) security_audit ;;
+      1|01) install_or_repair ;;
+      2|02) change_ports ;;
+      3|03) change_ws_path ;;
+      4|04) restart_xray; run_all_tests; echo -e "${GREEN}[OK] Reiniciado.${NC}"; pause ;;
+      5|05) show_client_json "$VPS_IP" ;;
+      6|06) rotate_uuid ;;
+      7|07) change_socks_security ;;
+      8|08) restore_latest_backup ;;
+      9|09) diagnostico "$VPS_IP" ;;
+      10) run_all_tests; echo -e "${GREEN}[OK] Vistoria OK.${NC}"; pause ;;
+      11) test_manual_one ;;
+      12) toggle_auto_check ;;
+      13) port_doctor ;;
       14) show_connected_peers ;;
       15) show_recent_logs ;;
-      16) restore_latest_backup ;;
-      0) exit 0 ;;
-      *) printf "%b\n" "${RED}Inválido${NC}"; pause ;;
+      16) security_audit ;;
+      0|00) exit 0 ;;
+      *) echo -e "${RED}Invalido${NC}"; sleep 1 ;;
     esac
   done
 }
